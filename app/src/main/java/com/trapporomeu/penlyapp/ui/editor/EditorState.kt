@@ -2,12 +2,13 @@ package com.trapporomeu.penlyapp.ui.editor
 
 import android.graphics.RectF
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
+import com.trapporomeu.penlyapp.data.ToolConfig
 import com.trapporomeu.penlyapp.model.Item
+import com.trapporomeu.penlyapp.model.PenType
 import com.trapporomeu.penlyapp.model.Notebook
 import com.trapporomeu.penlyapp.model.Page
 import com.trapporomeu.penlyapp.model.PageTemplate
@@ -23,7 +24,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-enum class Tool { PEN, HIGHLIGHTER, ERASER, TEXT, SHAPE, LASSO }
+/** NONE = nenhuma ferramenta: caneta e dedo só rolam a página. */
+enum class Tool { NONE, PEN, HIGHLIGHTER, ERASER, TEXT, SHAPE, LASSO }
 
 class EditorState(val app: AppViewModel, val notebookId: String) {
     private val repo = app.repo
@@ -36,20 +38,31 @@ class EditorState(val app: AppViewModel, val notebookId: String) {
         private set
     var pageIndex by mutableIntStateOf(0)
 
-    // Ferramenta atual e opções
+    // Ferramenta atual. As opções de cada ferramenta ficam no ToolStore (salvas entre sessões).
     var tool by mutableStateOf(Tool.PEN)
-    var penColor by mutableIntStateOf(0xFF212121.toInt())
-    var penWidth by mutableFloatStateOf(4f)
-    var highlighterColor by mutableIntStateOf(0xFFFFEB3B.toInt())
-    var highlighterWidth by mutableFloatStateOf(28f)
-    var eraserSize by mutableFloatStateOf(16f)
-    var shapeType by mutableStateOf(ShapeType.RECT)
-    var shapeColor by mutableIntStateOf(0xFF212121.toInt())
-    var shapeWidth by mutableFloatStateOf(4f)
-    var textColor by mutableIntStateOf(0xFF212121.toInt())
-    var textSize by mutableFloatStateOf(36f)
-    var textFont by mutableStateOf<String?>(null)
-    var textBold by mutableStateOf(false)
+    val tools = app.tools
+    val cfg: ToolConfig get() = tools.state.value
+
+    val penType: PenType get() = cfg.penType
+    val penColor: Int get() = cfg.penColors[cfg.penColorIdx]
+    val penWidth: Float get() = cfg.penWidths[cfg.penWidthIdx]
+    val highlighterColor: Int get() = cfg.hlColors[cfg.hlColorIdx]
+    val highlighterWidth: Float get() = cfg.hlWidths[cfg.hlWidthIdx]
+    val eraserSize: Float get() = cfg.eraserSizes[cfg.eraserIdx]
+    val shapeType: ShapeType get() = cfg.shapeType
+    val shapeColor: Int get() = cfg.shapeColors[cfg.shapeColorIdx]
+    val shapeWidth: Float get() = cfg.shapeWidths[cfg.shapeWidthIdx]
+    val textColor: Int get() = cfg.textColors[cfg.textColorIdx]
+
+    /** Toque na ferramenta já escolhida desliga ela (fica só rolando a página). */
+    fun selectTool(t: Tool) {
+        tool = if (tool == t) Tool.NONE else t
+        if (tool != Tool.LASSO) selection = emptySet()
+        eyedropperTarget = null
+    }
+
+    /** Conta-gotas: o próximo toque na página escolhe a cor para [eyedropperTarget]. */
+    var eyedropperTarget by mutableStateOf<((Int) -> Unit)?>(null)
 
     var zoomLocked by mutableStateOf(false)
     /** Vira true quando uma caneta (stylus) é usada; aí o dedo passa a rolar/zoom (modo Automático). */

@@ -60,3 +60,39 @@ val HighlighterIcon: ImageVector = outline("Highlighter") {
     lineTo(2.5f, 20.5f)
     lineTo(6f, 20.5f)
 }
+
+/** Caneta-tinteiro (pena). */
+val FountainPenIcon: ImageVector = outline("FountainPen") {
+    moveTo(19f, 3f)
+    lineTo(21f, 5f)
+    lineTo(15.5f, 10.5f)
+    moveTo(15.5f, 10.5f)
+    lineTo(9f, 9.5f)
+    lineTo(3.5f, 20.5f)
+    lineTo(14.5f, 15f)
+    close()
+    moveTo(3.5f, 20.5f)
+    lineTo(9.5f, 14.5f)
+    moveTo(11f, 13.5f)
+    lineTo(10f, 14f)
+}
+
+/** Pincel. */
+val BrushIcon: ImageVector = outline("Brush") {
+    moveTo(20.5f, 3.5f)
+    lineTo(11f, 13f)
+    moveTo(11f, 13f)
+    lineTo(13f, 15f)
+    moveTo(9.5f, 14.5f)
+    curveTo(7f, 14.5f, 6f, 16f, 6f, 17.5f)
+    curveTo(6f, 19f, 5f, 20f, 3.5f, 20.5f)
+    curveTo(7f, 21f, 11.5f, 20f, 11.5f, 16.5f)
+    close()
+}
+
+/** Suavização (curva). */
+val SmoothingIcon: ImageVector = outline("Smoothing") {
+    moveTo(3f, 16f)
+    curveTo(6f, 2f, 9f, 2f, 12f, 12f)
+    curveTo(15f, 22f, 18f, 22f, 21f, 8f)
+}

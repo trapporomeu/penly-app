@@ -29,6 +29,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val penly = app as PenlyApp
     val repo = penly.repo
     val settings = penly.settings
+    val tools = penly.tools
     val library = repo.library
 
     val backStack = mutableStateListOf<Screen>(Screen.Library())

@@ -5,10 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,22 +25,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.CropSquare
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.EmojiEmotions
-import androidx.compose.material.icons.outlined.FormatBold
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.HighlightAlt
-import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.DropdownMenu
@@ -69,7 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -81,10 +71,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.trapporomeu.penlyapp.data.Size3
 import com.trapporomeu.penlyapp.data.TextPlacement
 import com.trapporomeu.penlyapp.model.ImageItem
-import com.trapporomeu.penlyapp.model.ShapeType
 import com.trapporomeu.penlyapp.model.TextItem
 import com.trapporomeu.penlyapp.render.Exporter
-import com.trapporomeu.penlyapp.render.FontRegistry
 import com.trapporomeu.penlyapp.render.PageRenderer
 import com.trapporomeu.penlyapp.ui.AppViewModel
 import com.trapporomeu.penlyapp.ui.Screen
@@ -95,13 +83,6 @@ import com.trapporomeu.penlyapp.ui.components.TextInputDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-val PenColors = listOf(
-    0xFF212121, 0xFF757575, 0xFF1E5BC6, 0xFF2E7D32, 0xFFD32F2F, 0xFFEF6C00, 0xFF6A1B9A, 0xFFD81B60, 0xFF795548, 0xFF00897B, 0xFFFFFFFF,
-).map { it.toInt() }
-val HighlighterColors = listOf(
-    0xFFFFEB3B, 0xFF76FF03, 0xFF40C4FF, 0xFFFF80AB, 0xFFFFAB40, 0xFFB388FF,
-).map { it.toInt() }
 
 private sealed class EditorDialog {
     data class Text(val x: Float, val y: Float, val existing: TextItem?) : EditorDialog()
@@ -115,6 +96,7 @@ private sealed class EditorDialog {
 fun EditorScreen(vm: AppViewModel, notebookId: String) {
     val context = LocalContext.current
     val settings by vm.settings.state.collectAsStateWithLifecycle()
+    val cfg by vm.tools.state.collectAsStateWithLifecycle()
     val st = remember(notebookId) { EditorState(vm, notebookId) }
     val scope = rememberCoroutineScope()
     var dialog by remember { mutableStateOf<EditorDialog?>(null) }
@@ -174,26 +156,31 @@ fun EditorScreen(vm: AppViewModel, notebookId: String) {
             IconButton(onClick = { dialog = EditorDialog.Pages }) { Icon(Icons.Outlined.GridView, "Páginas") }
             IconButton(onClick = { st.addPageAfter() }) { Icon(Icons.Default.Add, "Adicionar página") }
             Spacer(Modifier.width(24.dp))
-            ToolButton(PenIcon, "Caneta", st.tool == Tool.PEN) { st.tool = Tool.PEN }
-            ToolButton(HighlighterIcon, "Marca-texto", st.tool == Tool.HIGHLIGHTER) { st.tool = Tool.HIGHLIGHTER }
-            ToolButton(EraserIcon, "Borracha", st.tool == Tool.ERASER) { st.tool = Tool.ERASER }
-            ToolButton(Icons.Outlined.Title, "Texto", st.tool == Tool.TEXT) { st.tool = Tool.TEXT }
-            ToolButton(Icons.Outlined.Category, "Formas", st.tool == Tool.SHAPE) { st.tool = Tool.SHAPE }
+            ToolButton(PenIcon, "Caneta", st.tool == Tool.PEN) { st.selectTool(Tool.PEN) }
+            ToolButton(HighlighterIcon, "Marca-texto", st.tool == Tool.HIGHLIGHTER) { st.selectTool(Tool.HIGHLIGHTER) }
+            ToolButton(EraserIcon, "Borracha", st.tool == Tool.ERASER) { st.selectTool(Tool.ERASER) }
+            ToolButton(Icons.Outlined.Title, "Texto", st.tool == Tool.TEXT) { st.selectTool(Tool.TEXT) }
+            ToolButton(Icons.Outlined.Category, "Formas", st.tool == Tool.SHAPE) { st.selectTool(Tool.SHAPE) }
             ToolButton(Icons.Outlined.Image, "Imagem", false) {
                 imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
             ToolButton(Icons.Outlined.EmojiEmotions, "Stickers", false) { dialog = EditorDialog.Stickers }
-            ToolButton(Icons.Outlined.HighlightAlt, "Laço (selecionar)", st.tool == Tool.LASSO) { st.tool = Tool.LASSO }
+            ToolButton(Icons.Outlined.HighlightAlt, "Laço (selecionar)", st.tool == Tool.LASSO) { st.selectTool(Tool.LASSO) }
             Spacer(Modifier.width(24.dp))
-            IconButton(onClick = { st.goTo(st.pageIndex - 1) }, enabled = st.pageIndex > 0) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Página anterior")
-            }
-            Text(
-                "${st.pageIndex + 1} / ${nb.pages.size}",
-                Modifier.clip(MaterialTheme.shapes.small).clickable { dialog = EditorDialog.GoTo }.padding(horizontal = 8.dp, vertical = 6.dp),
-            )
-            IconButton(onClick = { st.goTo(st.pageIndex + 1) }, enabled = st.pageIndex < nb.pages.lastIndex) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Próxima página")
+            val showPageNav = st.tool == Tool.NONE || (st.tool == Tool.LASSO && st.selection.isEmpty())
+            if (showPageNav) {
+                IconButton(onClick = { st.goTo(st.pageIndex - 1) }, enabled = st.pageIndex > 0) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Página anterior")
+                }
+                Text(
+                    "${st.pageIndex + 1} / ${nb.pages.size}",
+                    Modifier.clip(MaterialTheme.shapes.small).clickable { dialog = EditorDialog.GoTo }.padding(horizontal = 8.dp, vertical = 6.dp),
+                )
+                IconButton(onClick = { st.goTo(st.pageIndex + 1) }, enabled = st.pageIndex < nb.pages.lastIndex) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Próxima página")
+                }
+            } else {
+                ToolbarOptions(st, cfg)
             }
             Spacer(Modifier.width(24.dp))
             if (settings.zoomLockButton) {
@@ -247,10 +234,13 @@ fun EditorScreen(vm: AppViewModel, notebookId: String) {
             }
         }
         HorizontalDivider()
-
-        // ---------- Opções da ferramenta ----------
-        ToolOptions(st)
-        HorizontalDivider()
+        if (st.eyedropperTarget != null) {
+            Text(
+                "Toque na página para pegar a cor",
+                Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)).padding(8.dp),
+                textAlign = TextAlign.Center,
+            )
+        }
 
         PageCanvas(
             st = st,
@@ -273,7 +263,7 @@ fun EditorScreen(vm: AppViewModel, notebookId: String) {
             if (ex != null) {
                 st.replaceItem(ex.copy(text = text))
             } else {
-                var item = TextItem(x = d.x, y = d.y, text = text, size = st.textSize, color = st.textColor, font = st.textFont, bold = st.textBold)
+                var item = TextItem(x = d.x, y = d.y, text = text, size = cfg.textSize, color = st.textColor, font = cfg.textFont, bold = cfg.textBold)
                 val lay = PageRenderer.textLayout(item)
                 val dx = if (settings.textPlacement == TextPlacement.MIDDLE) lay.width / 2f else 0f
                 item = item.copy(x = d.x - dx, y = d.y - lay.height / 2f)
@@ -341,118 +331,3 @@ private fun ToolButton(icon: ImageVector, label: String, selected: Boolean, onCl
         Icon(icon, label, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
     }
 }
-
-@Composable
-private fun ColorRow(colors: List<Int>, selected: Int, onPick: (Int) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        colors.forEach { c ->
-            Box(
-                Modifier.size(28.dp).clip(CircleShape).background(Color(c))
-                    .border(
-                        width = if (c == selected) 3.dp else 1.dp,
-                        color = if (c == selected) MaterialTheme.colorScheme.primary else Color(0x33000000),
-                        shape = CircleShape,
-                    )
-                    .clickable { onPick(c) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun WidthRow(widths: List<Float>, selected: Float, color: Int, onPick: (Float) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        widths.forEachIndexed { i, wv ->
-            val dot = (6 + i * 5).dp
-            Box(
-                Modifier.size(36.dp).clip(CircleShape)
-                    .background(if (wv == selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent)
-                    .clickable { onPick(wv) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(dot).clip(CircleShape).background(Color(color or 0xFF000000.toInt())))
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionsSpacer() = Spacer(Modifier.width(20.dp))
-
-@Composable
-private fun ToolOptions(st: EditorState) {
-    Row(
-        Modifier.fillMaxWidth().height(48.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        when (st.tool) {
-            Tool.PEN -> {
-                ColorRow(PenColors, st.penColor) { st.penColor = it }
-                OptionsSpacer()
-                WidthRow(listOf(2f, 3.5f, 5f, 8f, 12f), st.penWidth, st.penColor) { st.penWidth = it }
-            }
-            Tool.HIGHLIGHTER -> {
-                ColorRow(HighlighterColors, st.highlighterColor) { st.highlighterColor = it }
-                OptionsSpacer()
-                WidthRow(listOf(16f, 28f, 40f), st.highlighterWidth, st.highlighterColor) { st.highlighterWidth = it }
-            }
-            Tool.ERASER -> {
-                Text("Tamanho:", style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.width(8.dp))
-                WidthRow(listOf(8f, 16f, 32f, 56f), st.eraserSize, 0xFF9E9E9E.toInt()) { st.eraserSize = it }
-                OptionsSpacer()
-                TextButton(onClick = { st.updatePage { p -> p.copy(items = p.items.filterNot { it is com.trapporomeu.penlyapp.model.StrokeItem || it is com.trapporomeu.penlyapp.model.ShapeItem }) } }) {
-                    Text("Apagar toda a tinta da página")
-                }
-            }
-            Tool.TEXT -> {
-                var fontMenu by remember { mutableStateOf(false) }
-                Box {
-                    TextButton(onClick = { fontMenu = true }) { Text("Fonte: ${st.textFont ?: "Padrão"}") }
-                    DropdownMenu(fontMenu, { fontMenu = false }) {
-                        FontRegistry.allNames().forEach { name ->
-                            DropdownMenuItem(text = { Text(name) }, onClick = { st.textFont = if (name == "Padrão") null else name; fontMenu = false })
-                        }
-                    }
-                }
-                IconButton(onClick = { st.textSize = (st.textSize - 4f).coerceAtLeast(12f) }) { Icon(Icons.Outlined.Remove, "Menor") }
-                Text("${st.textSize.toInt()}", fontWeight = FontWeight.Bold)
-                IconButton(onClick = { st.textSize = (st.textSize + 4f).coerceAtMost(200f) }) { Icon(Icons.Default.Add, "Maior") }
-                ToolButton(Icons.Outlined.FormatBold, "Negrito", st.textBold) { st.textBold = !st.textBold }
-                OptionsSpacer()
-                ColorRow(PenColors, st.textColor) { st.textColor = it }
-                OptionsSpacer()
-                Text("Toque na página para escrever", style = MaterialTheme.typography.bodySmall)
-            }
-            Tool.SHAPE -> {
-                ToolButton(Icons.Outlined.CropSquare, "Retângulo", st.shapeType == ShapeType.RECT) { st.shapeType = ShapeType.RECT }
-                ToolButton(Icons.Outlined.Circle, "Oval", st.shapeType == ShapeType.OVAL) { st.shapeType = ShapeType.OVAL }
-                ToolButton(Icons.Outlined.HorizontalRule, "Linha", st.shapeType == ShapeType.LINE) { st.shapeType = ShapeType.LINE }
-                ToolButton(Icons.AutoMirrored.Outlined.ArrowForward, "Seta", st.shapeType == ShapeType.ARROW) { st.shapeType = ShapeType.ARROW }
-                OptionsSpacer()
-                ColorRow(PenColors, st.shapeColor) { st.shapeColor = it }
-                OptionsSpacer()
-                WidthRow(listOf(2f, 4f, 7f, 11f), st.shapeWidth, st.shapeColor) { st.shapeWidth = it }
-            }
-            Tool.LASSO -> {
-                if (st.selection.isEmpty()) {
-                    Text("Circule itens para selecionar, ou toque em um item.", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    Text("${st.selection.size} selecionado(s)", style = MaterialTheme.typography.labelLarge)
-                    OptionsSpacer()
-                    TextButton(onClick = { st.deleteSelection() }) {
-                        Icon(Icons.Outlined.Delete, null); Spacer(Modifier.width(4.dp)); Text("Excluir")
-                    }
-                    TextButton(onClick = { st.duplicateSelection() }) {
-                        Icon(Icons.Outlined.ContentCopy, null); Spacer(Modifier.width(4.dp)); Text("Duplicar")
-                    }
-                    OptionsSpacer()
-                    ColorRow(PenColors, -1) { st.recolorSelection(it) }
-                    OptionsSpacer()
-                    TextButton(onClick = { st.selection = emptySet() }) { Text("Limpar seleção") }
-                }
-            }
-        }
-    }
-}
-

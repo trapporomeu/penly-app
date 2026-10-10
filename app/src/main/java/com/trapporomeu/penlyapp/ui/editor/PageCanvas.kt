@@ -34,12 +34,14 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import com.trapporomeu.penlyapp.data.AppSettings
 import com.trapporomeu.penlyapp.data.FingerMode
 import com.trapporomeu.penlyapp.data.ScrollDirection
 import com.trapporomeu.penlyapp.data.Size3
 import com.trapporomeu.penlyapp.model.Item
+import com.trapporomeu.penlyapp.model.PenType
 import com.trapporomeu.penlyapp.model.Pt
 import com.trapporomeu.penlyapp.model.ShapeItem
 import com.trapporomeu.penlyapp.model.StrokeItem
@@ -90,6 +92,7 @@ fun PageCanvas(
     var pan by remember { mutableStateOf(Offset.Zero) }
     var swipe by remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
+    val context = LocalContext.current
     val padPx = with(density) { 20f * this.density }
     val handlePx = with(density) {
         when (settings.selectionScale) {
@@ -223,7 +226,17 @@ fun PageCanvas(
 
         /** Caneta, marca-texto, borracha e formas. */
         suspend fun AwaitPointerEventScope.drawGesture(down: PointerInputChange, tool: Tool, isPen: Boolean) {
-            val start = toPage(down.position)
+            // Pressão: só a caneta informa de verdade; com o dedo usamos um valor médio.
+            fun pressureOf(ch: PointerInputChange) = if (isPen) ch.pressure.coerceIn(0.05f, 1f) else 0.55f
+            var lastPressure = pressureOf(down)
+            val start = toPage(down.position).copy(p = lastPressure)
+            // Suavização (0..100): média móvel exponencial dos pontos da caneta.
+            val alpha = if (tool == Tool.PEN) 1f - 0.9f * st.cfg.smoothing / 100f else 1f
+            var smooth = start
+            fun addSmoothed(raw: Pt) {
+                smooth = Pt(smooth.x + (raw.x - smooth.x) * alpha, smooth.y + (raw.y - smooth.y) * alpha, raw.p)
+                addPoint(live.points, smooth)
+            }
             when (tool) {
                 Tool.PEN, Tool.HIGHLIGHTER -> { live.points.clear(); live.points.add(start) }
                 Tool.ERASER -> { st.beginLive(); live.eraser = start; eraseAt(start) }
@@ -241,9 +254,14 @@ fun PageCanvas(
                 }
                 val ch = ev.changes.firstOrNull { it.id == down.id } ?: break
                 if (!ch.pressed) break
-                val pts = ch.historical.map { toPage(it.position) } + toPage(ch.position)
+                val pNow = pressureOf(ch)
+                val hist = ch.historical
+                val pts = hist.mapIndexed { i, hc ->
+                    toPage(hc.position).copy(p = lastPressure + (pNow - lastPressure) * (i + 1) / (hist.size + 1))
+                } + toPage(ch.position).copy(p = pNow)
+                lastPressure = pNow
                 when (tool) {
-                    Tool.PEN, Tool.HIGHLIGHTER -> pts.forEach { addPoint(live.points, it) }
+                    Tool.PEN, Tool.HIGHLIGHTER -> pts.forEach { addSmoothed(it) }
                     Tool.ERASER -> pts.forEach { p ->
                         // interpola para não "pular" traços quando o movimento é rápido
                         val dist = hypot(p.x - last.x, p.y - last.y)
@@ -268,6 +286,7 @@ fun PageCanvas(
                                 color = if (hl) st.highlighterColor else st.penColor,
                                 width = if (hl) st.highlighterWidth else st.penWidth,
                                 highlighter = hl,
+                                pen = if (hl) PenType.PENCIL else st.penType,
                             ),
                         )
                     }
@@ -362,7 +381,19 @@ fun PageCanvas(
                         if (isPen && !st.stylusSeen) st.stylusSeen = true
                         val canDraw = isPen || fingerDraws()
                         val tool = if (down.type == PointerType.Eraser) Tool.ERASER else st.tool
+                        val pick = st.eyedropperTarget
                         when {
+                            pick != null -> navigate(down) { p ->
+                                val pg = st.page
+                                if (pg != null && p.x in 0f..pg.width && p.y in 0f..pg.height) {
+                                    val bmp = PageRenderer.renderBitmap(context, pg, st.assets, 1f)
+                                    val color = bmp.getPixel(p.x.toInt().coerceIn(0, bmp.width - 1), p.y.toInt().coerceIn(0, bmp.height - 1))
+                                    bmp.recycle()
+                                    pick(color or 0xFF000000.toInt())
+                                }
+                                st.eyedropperTarget = null
+                            }
+                            tool == Tool.NONE -> navigate(down) { }
                             tool == Tool.LASSO -> lassoGesture(down, canDraw)
                             tool == Tool.TEXT -> navigate(down) { p ->
                                 textTap(p.x, p.y, (itemAt(p) as? TextItem))
@@ -396,11 +427,12 @@ fun PageCanvas(
                 }
                 if (live.points.isNotEmpty()) {
                     val hl = st.tool == Tool.HIGHLIGHTER
-                    PageRenderer.drawLivePath(
-                        nc, PageRenderer.buildPath(live.points),
+                    PageRenderer.drawLiveStroke(
+                        nc, live.points,
                         if (hl) st.highlighterColor else st.penColor,
                         if (hl) st.highlighterWidth else st.penWidth,
                         hl,
+                        if (hl) PenType.PENCIL else st.penType,
                     )
                 }
                 val a = live.shapeStart

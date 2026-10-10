@@ -17,6 +17,7 @@ import com.trapporomeu.penlyapp.model.ImageItem
 import com.trapporomeu.penlyapp.model.Item
 import com.trapporomeu.penlyapp.model.Page
 import com.trapporomeu.penlyapp.model.PageTemplate
+import com.trapporomeu.penlyapp.model.PenType
 import com.trapporomeu.penlyapp.model.Pt
 import com.trapporomeu.penlyapp.model.ShapeItem
 import com.trapporomeu.penlyapp.model.ShapeType
@@ -297,8 +298,67 @@ object PageRenderer {
     }
 
     fun drawStroke(c: Canvas, s: StrokeItem) {
+        if (!s.highlighter && s.pen != PenType.PENCIL) {
+            val path = s.cachedPath ?: buildOutline(s.points, s.width, s.pen).also { s.cachedPath = it }
+            fill.color = s.color
+            c.drawPath(path, fill)
+            return
+        }
         val path = s.cachedPath ?: buildPath(s.points).also { s.cachedPath = it }
         drawLivePath(c, path, s.color, s.width, s.highlighter)
+    }
+
+    /** Traço ao vivo (enquanto a caneta ainda está na tela). */
+    fun drawLiveStroke(c: Canvas, points: List<Pt>, color: Int, width: Float, highlighter: Boolean, pen: PenType) {
+        if (!highlighter && pen != PenType.PENCIL) {
+            fill.color = color
+            c.drawPath(buildOutline(points, width, pen), fill)
+        } else {
+            drawLivePath(c, buildPath(points), color, width, highlighter)
+        }
+    }
+
+    /** Quanto a pressão muda a largura de cada tipo de caneta. */
+    private fun pressureFactor(pen: PenType, p: Float): Float = when (pen) {
+        PenType.PENCIL -> 1f
+        PenType.FOUNTAIN -> 0.4f + 0.9f * p
+        PenType.BRUSH -> 0.15f + 1.7f * p
+    }
+
+    /** Contorno preenchido com largura variável (caneta-tinteiro e pincel). */
+    fun buildOutline(points: List<Pt>, width: Float, pen: PenType): Path {
+        val path = Path()
+        if (points.isEmpty()) return path
+        val n = points.size
+        val raw = FloatArray(n) { width * pressureFactor(pen, points[it].p.coerceIn(0f, 1f)) }
+        // suaviza a largura para não "serrilhar"
+        val w = FloatArray(n) { i ->
+            val a = raw[max(0, i - 2)]; val b = raw[max(0, i - 1)]; val d = raw[min(n - 1, i + 1)]; val e = raw[min(n - 1, i + 2)]
+            (a + b + raw[i] * 2 + d + e) / 6f
+        }
+        if (n == 1) {
+            path.addCircle(points[0].x, points[0].y, w[0] / 2, Path.Direction.CW)
+            return path
+        }
+        val lx = FloatArray(n); val ly = FloatArray(n); val rx = FloatArray(n); val ry = FloatArray(n)
+        for (i in 0 until n) {
+            val prev = points[max(0, i - 1)]
+            val next = points[min(n - 1, i + 1)]
+            var dx = next.x - prev.x
+            var dy = next.y - prev.y
+            val len = hypot(dx, dy)
+            if (len < 1e-3f) { dx = 1f; dy = 0f } else { dx /= len; dy /= len }
+            val h = w[i] / 2
+            lx[i] = points[i].x - dy * h; ly[i] = points[i].y + dx * h
+            rx[i] = points[i].x + dy * h; ry[i] = points[i].y - dx * h
+        }
+        path.moveTo(lx[0], ly[0])
+        for (i in 1 until n) path.lineTo(lx[i], ly[i])
+        for (i in n - 1 downTo 0) path.lineTo(rx[i], ry[i])
+        path.close()
+        path.addCircle(points[0].x, points[0].y, w[0] / 2, Path.Direction.CW)
+        path.addCircle(points[n - 1].x, points[n - 1].y, w[n - 1] / 2, Path.Direction.CW)
+        return path
     }
 
     fun drawLivePath(c: Canvas, path: Path, color: Int, width: Float, highlighter: Boolean) {
@@ -357,7 +417,7 @@ object PageRenderer {
         is StrokeItem -> {
             var l = Float.MAX_VALUE; var tp = Float.MAX_VALUE; var r = -Float.MAX_VALUE; var b = -Float.MAX_VALUE
             item.points.forEach { l = min(l, it.x); tp = min(tp, it.y); r = max(r, it.x); b = max(b, it.y) }
-            val pad = item.width / 2
+            val pad = item.width * (if (item.pen == PenType.BRUSH) 0.95f else 0.7f)
             RectF(l - pad, tp - pad, r + pad, b + pad)
         }
         is TextItem -> {
@@ -427,7 +487,7 @@ object PageRenderer {
     }
 
     fun translate(item: Item, dx: Float, dy: Float): Item = when (item) {
-        is StrokeItem -> item.copy(points = item.points.map { Pt(it.x + dx, it.y + dy) })
+        is StrokeItem -> item.copy(points = item.points.map { it.copy(x = it.x + dx, y = it.y + dy) })
         is TextItem -> item.copy(x = item.x + dx, y = item.y + dy)
         is ShapeItem -> item.copy(x1 = item.x1 + dx, y1 = item.y1 + dy, x2 = item.x2 + dx, y2 = item.y2 + dy)
         is ImageItem -> item.copy(x = item.x + dx, y = item.y + dy)
@@ -438,7 +498,7 @@ object PageRenderer {
         fun sx(v: Float) = ox + (v - ox) * s
         fun sy(v: Float) = oy + (v - oy) * s
         return when (item) {
-            is StrokeItem -> item.copy(points = item.points.map { Pt(sx(it.x), sy(it.y)) }, width = item.width * s)
+            is StrokeItem -> item.copy(points = item.points.map { it.copy(x = sx(it.x), y = sy(it.y)) }, width = item.width * s)
             is TextItem -> item.copy(x = sx(item.x), y = sy(item.y), size = item.size * s)
             is ShapeItem -> item.copy(x1 = sx(item.x1), y1 = sy(item.y1), x2 = sx(item.x2), y2 = sy(item.y2), width = item.width * s)
             is ImageItem -> item.copy(x = sx(item.x), y = sy(item.y), w = item.w * s, h = item.h * s)

@@ -20,7 +20,11 @@ enum class PageTemplate { BLANK, LINED, GRID, DOTS, TODO, WEEKLY, COVER }
 enum class ShapeType { RECT, OVAL, LINE, ARROW }
 
 @Serializable
-data class Pt(val x: Float, val y: Float)
+enum class PenType { PENCIL, FOUNTAIN, BRUSH }
+
+/** Ponto de um traço. [p] é a pressão da caneta (0..1); dedo usa um valor fixo. */
+@Serializable
+data class Pt(val x: Float, val y: Float, val p: Float = 1f)
 
 @Serializable
 sealed class Item {
@@ -35,6 +39,7 @@ data class StrokeItem(
     val color: Int,
     val width: Float,
     val highlighter: Boolean = false,
+    val pen: PenType = PenType.PENCIL,
 ) : Item() {
     // Cache do Path desenhado. Como os itens são imutáveis, cada cópia recria o seu.
     @Transient
