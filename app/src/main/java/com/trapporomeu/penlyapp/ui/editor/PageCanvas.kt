@@ -74,7 +74,6 @@ private val dashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
 }
 private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0xFF5B8BD0.toInt() }
 private val eraserPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF757575.toInt() }
-private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0x22000000 }
 
 // `historical` (pontos intermediários da caneta) ainda é marcado como experimental.
 @OptIn(ExperimentalComposeUiApi::class)
@@ -93,7 +92,8 @@ fun PageCanvas(
     var swipe by remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
     val context = LocalContext.current
-    val padPx = with(density) { 20f * this.density }
+    // Como no Penly: a página ocupa toda a altura, sem margem
+    val padPx = 0f
     val handlePx = with(density) {
         when (settings.selectionScale) {
             Size3.SMALL -> 9f; Size3.MEDIUM -> 13f; Size3.LARGE -> 18f
@@ -410,7 +410,6 @@ fun PageCanvas(
             val s = viewScale()
             drawIntoCanvas { c ->
                 val nc = c.nativeCanvas
-                nc.drawRect(tl.x + 3f, tl.y + 4f, tl.x + pg.width * s + 3f, tl.y + pg.height * s + 4f, shadowPaint)
                 nc.save()
                 nc.translate(tl.x, tl.y)
                 nc.scale(s, s)

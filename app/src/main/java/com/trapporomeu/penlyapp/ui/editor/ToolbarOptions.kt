@@ -1,5 +1,7 @@
 package com.trapporomeu.penlyapp.ui.editor
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.outlined.HorizontalRule
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -65,6 +69,7 @@ import com.trapporomeu.penlyapp.ui.components.BrushIcon
 import com.trapporomeu.penlyapp.ui.components.FountainPenIcon
 import com.trapporomeu.penlyapp.ui.components.PenIcon
 import com.trapporomeu.penlyapp.ui.components.SmoothingIcon
+import com.trapporomeu.penlyapp.ui.components.displayName
 import kotlin.math.roundToInt
 
 fun penIcon(t: PenType): ImageVector = when (t) {
@@ -102,12 +107,12 @@ fun ToolbarPopup(onDismiss: () -> Unit, content: @Composable () -> Unit) {
 
 @Composable
 private fun BarIcon(icon: ImageVector, label: String, selected: Boolean = false, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.clip(CircleShape)
-            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent),
-    ) {
-        Icon(icon, label, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+    IconButton(onClick = onClick) {
+        Icon(
+            icon, label,
+            modifier = Modifier.size(26.dp),
+            tint = if (selected) Color(0xFF4A86E8) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+        )
     }
 }
 
@@ -122,7 +127,7 @@ private fun PenTypeButton(current: PenType, onPick: (PenType) -> Unit) {
         if (open) ToolbarPopup({ open = false }) {
             Column(Modifier.padding(vertical = 6.dp)) {
                 listOf(PenType.PENCIL to "Lápis", PenType.FOUNTAIN to "Caneta-tinteiro", PenType.BRUSH to "Pincel").forEach { (t, label) ->
-                    BarIcon(penIcon(t), label, selected = t == current) { onPick(t); open = false }
+                    BarIcon(penIcon(t), label) { onPick(t); open = false }
                 }
             }
         }
@@ -135,14 +140,17 @@ private fun SmoothingButton(value: Int, onChange: (Int) -> Unit) {
     Box {
         BarIcon(SmoothingIcon, "Suavização") { open = true }
         if (open) ToolbarPopup({ open = false }) {
-            Column(Modifier.width(240.dp).padding(16.dp)) {
+            Column(Modifier.width(230.dp).padding(start = 16.dp, end = 12.dp, top = 16.dp, bottom = 4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Suavização:", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                    Spacer(Modifier.width(12.dp))
-                    Text("$value", fontWeight = FontWeight.Medium)
+                    Text("Suavização:", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.width(60.dp)) {
+                        Text("$value")
+                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    }
                 }
                 Slider(value.toFloat(), { onChange(it.roundToInt()) }, valueRange = 0f..100f)
-                TextButton(onClick = { open = false }, modifier = Modifier.align(Alignment.End)) { Text("OK") }
+                TextButton(onClick = { open = false }, modifier = Modifier.align(Alignment.End)) { Text("PRONTO", color = Color(0xFF4A86E8)) }
             }
         }
     }
@@ -163,14 +171,14 @@ private fun WidthSlots(widths: List<Float>, idx: Int, range: ClosedFloatingPoint
                 Box(
                     Modifier.size(width = 34.dp, height = (2f + 7f * (i.toFloat() / (widths.size - 1).coerceAtLeast(1))).dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)),
+                        .background(if (selected) Color(0xFF8FB3EE) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)),
                 )
             }
             if (editing == i) ToolbarPopup({ editing = null }) {
                 Column(Modifier.width(240.dp).padding(16.dp)) {
-                    Text("Espessura: ${"%.1f".format(w)}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    Text("Espessura: ${"%.1f".format(w)}", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     Slider(w, { onEdit(i, (it * 2).roundToInt() / 2f) }, valueRange = range)
-                    TextButton(onClick = { editing = null }, modifier = Modifier.align(Alignment.End)) { Text("OK") }
+                    TextButton(onClick = { editing = null }, modifier = Modifier.align(Alignment.End)) { Text("PRONTO", color = Color(0xFF4A86E8)) }
                 }
             }
         }
@@ -190,7 +198,7 @@ private fun ColorSlots(st: EditorState, cfg: ToolConfig, colors: List<Int>, idx:
             ) {
                 Box(
                     Modifier.size(30.dp)
-                        .border(if (selected) 3.dp else 0.dp, if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f) else Color.Transparent, CircleShape)
+                        .border(if (selected) 3.dp else 0.dp, if (selected) Color(0xFFB9D0F5) else Color.Transparent, CircleShape)
                         .padding(if (selected) 3.dp else 0.dp)
                         .clip(CircleShape).background(Color(c)),
                 )
@@ -248,15 +256,29 @@ fun ToolbarOptions(st: EditorState, cfg: ToolConfig) {
         }
         Tool.TEXT -> {
             var fontMenu by remember { mutableStateOf(false) }
+            var fontsVersion by remember { mutableStateOf(0) }
+            val context = LocalContext.current
+            val fontPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                if (uri != null) {
+                    val ok = st.app.repo.addFont(uri, displayName(context, uri))
+                    st.app.toast = if (ok) "Fonte adicionada" else "Arquivo de fonte inválido (use .ttf ou .otf)"
+                    fontsVersion++
+                }
+            }
             Box {
                 TextButton(onClick = { fontMenu = true }) { Text(cfg.textFont ?: "Padrão") }
                 DropdownMenu(fontMenu, { fontMenu = false }) {
-                    FontRegistry.allNames().forEach { name ->
+                    remember(fontsVersion) { FontRegistry.allNames() }.forEach { name ->
                         DropdownMenuItem(text = { Text(name) }, onClick = {
                             tools.update { it.copy(textFont = if (name == "Padrão") null else name) }
                             fontMenu = false
                         })
                     }
+                    HorizontalDivider()
+                    DropdownMenuItem(text = { Text("Adicionar fonte (.ttf/.otf)…") }, onClick = {
+                        fontMenu = false
+                        fontPicker.launch(arrayOf("*/*"))
+                    })
                 }
             }
             IconButton(onClick = { tools.update { it.copy(textSize = (it.textSize - 4f).coerceAtLeast(12f)) } }) { Icon(Icons.Outlined.Remove, "Menor") }

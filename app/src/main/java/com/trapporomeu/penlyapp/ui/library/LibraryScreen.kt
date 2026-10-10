@@ -23,16 +23,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Notes
+import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
@@ -47,7 +43,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -68,6 +63,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.trapporomeu.penlyapp.R
+import com.trapporomeu.penlyapp.ui.components.ChevronDownIcon
+import com.trapporomeu.penlyapp.ui.components.SortIcon
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -113,26 +114,36 @@ fun AppDrawer(vm: AppViewModel, selected: String, content: @Composable (openDraw
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(Modifier.width(300.dp)) {
-                Surface(Modifier.padding(20.dp).size(72.dp), shape = MaterialTheme.shapes.large, shadowElevation = 2.dp) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.Notes, null, Modifier.size(44.dp), tint = PenlyBlue)
-                    }
+            // Igual ao Penly: ícone do app no topo e itens só com texto
+            ModalDrawerSheet(
+                Modifier.width(320.dp),
+                drawerShape = RectangleShape,
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+            ) {
+                Surface(
+                    Modifier.padding(start = 16.dp, top = 16.dp, bottom = 36.dp).size(64.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    shadowElevation = 3.dp,
+                    color = Color.White,
+                ) {
+                    Image(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
                 }
                 listOf(
-                    Triple("Minhas Notas", Icons.Outlined.Notes, Screen.Library()),
-                    Triple("Backups", Icons.Outlined.History, Screen.Backups),
-                    Triple("Lixeira", Icons.Outlined.Delete, Screen.Trash),
-                ).forEach { (label, icon, screen) ->
-                    NavigationDrawerItem(
-                        label = { Text(label) },
-                        icon = { Icon(icon, null) },
-                        selected = label == selected,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            if (label != selected) vm.switchRoot(screen)
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp),
+                    "Minhas Notas" to Screen.Library(),
+                    "Backups" to Screen.Backups,
+                    "Lixeira" to Screen.Trash,
+                ).forEach { (label, screen) ->
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                        modifier = Modifier.fillMaxWidth()
+                            .clickable {
+                                scope.launch { drawerState.close() }
+                                if (label != selected) vm.switchRoot(screen)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 22.dp),
                     )
                 }
             }
@@ -229,7 +240,7 @@ fun LibraryScreen(vm: AppViewModel, folderId: String?) {
                     },
                     actions = {
                         Box {
-                            IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, "Ordenar") }
+                            IconButton(onClick = { sortMenu = true }) { Icon(SortIcon, "Ordenar") }
                             DropdownMenu(sortMenu, { sortMenu = false }) {
                                 SortMode.entries.forEach { m ->
                                     DropdownMenuItem(
@@ -242,6 +253,7 @@ fun LibraryScreen(vm: AppViewModel, folderId: String?) {
                         IconButton(onClick = { searching = !searching; if (!searching) query = "" }) {
                             Icon(if (searching) Icons.Default.Close else Icons.Outlined.Search, "Buscar")
                         }
+                        IconButton(onClick = { vm.toast = "Contato: em breve" }) { Icon(Icons.Outlined.MailOutline, "Contato") }
                         IconButton(onClick = { dialog = Dialog.Help }) { Icon(Icons.Outlined.HelpOutline, "Ajuda") }
                         IconButton(onClick = { vm.navigate(Screen.Settings) }) { Icon(Icons.Outlined.Settings, "Configurações") }
                     },
@@ -408,7 +420,7 @@ private fun CardFooter(title: String, subtitle: String, bold: Boolean, menu: @Co
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
         Box {
             IconButton(onClick = { open = true }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.KeyboardArrowDown, "Opções")
+                Icon(ChevronDownIcon, "Opções", Modifier.size(22.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
             DropdownMenu(open, { open = false }) { menu { open = false } }
         }
@@ -457,6 +469,7 @@ private fun NotebookCard(vm: AppViewModel, meta: NotebookMeta, onOpen: () -> Uni
             DropdownMenuItem(text = { Text("Abrir") }, onClick = { close(); onOpen() })
             DropdownMenuItem(text = { Text("Renomear") }, onClick = { close(); onRename() })
             DropdownMenuItem(text = { Text("Duplicar") }, onClick = { close(); vm.io { vm.repo.duplicateNotebook(meta.id) } })
+            DropdownMenuItem(text = { Text("Backups") }, onClick = { close(); vm.navigate(Screen.Backups) })
             DropdownMenuItem(text = { Text("Mover para pasta") }, onClick = { close(); onMove() })
             DropdownMenuItem(text = { Text("Exportar PDF") }, onClick = {
                 close()

@@ -6,7 +6,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,26 +14,29 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.automirrored.outlined.Redo
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.outlined.RotateLeft
+import androidx.compose.material.icons.outlined.RotateRight
+import com.trapporomeu.penlyapp.ui.components.ChevronLeftIcon
+import com.trapporomeu.penlyapp.ui.components.ImageToolIcon
+import com.trapporomeu.penlyapp.ui.components.LassoIcon
+import com.trapporomeu.penlyapp.ui.components.PagesGridIcon
+import com.trapporomeu.penlyapp.ui.components.PlusIcon
+import com.trapporomeu.penlyapp.ui.components.ShapesIcon
+import com.trapporomeu.penlyapp.ui.components.StickerIcon
+import com.trapporomeu.penlyapp.ui.components.TextToolIcon
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.EmojiEmotions
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.HighlightAlt
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -147,52 +149,51 @@ fun EditorScreen(vm: AppViewModel, notebookId: String) {
     val nb = st.notebook ?: return
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
-        // ---------- Barra superior (igual ao Penly) ----------
+        // ---------- Barra superior (mesma disposição do Penly) ----------
+        // [voltar, páginas, +]  ·  [ferramentas]  ·  [páginas 1/12 ou opções da ferramenta]  ·  [cadeado, desfazer, refazer | engrenagem]
         Row(
-            Modifier.fillMaxWidth().height(56.dp).horizontalScroll(rememberScrollState()),
+            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = { st.saveNow(); vm.back() }) { Icon(Icons.AutoMirrored.Filled.ArrowBackIos, "Voltar") }
-            IconButton(onClick = { dialog = EditorDialog.Pages }) { Icon(Icons.Outlined.GridView, "Páginas") }
-            IconButton(onClick = { st.addPageAfter() }) { Icon(Icons.Default.Add, "Adicionar página") }
-            Spacer(Modifier.width(24.dp))
+            BarButton(ChevronLeftIcon, "Voltar") { st.saveNow(); vm.back() }
+            BarButton(PagesGridIcon, "Páginas") { dialog = EditorDialog.Pages }
+            BarButton(PlusIcon, "Adicionar página") { st.addPageAfter() }
+            Spacer(Modifier.weight(0.55f))
             ToolButton(PenIcon, "Caneta", st.tool == Tool.PEN) { st.selectTool(Tool.PEN) }
             ToolButton(HighlighterIcon, "Marca-texto", st.tool == Tool.HIGHLIGHTER) { st.selectTool(Tool.HIGHLIGHTER) }
             ToolButton(EraserIcon, "Borracha", st.tool == Tool.ERASER) { st.selectTool(Tool.ERASER) }
-            ToolButton(Icons.Outlined.Title, "Texto", st.tool == Tool.TEXT) { st.selectTool(Tool.TEXT) }
-            ToolButton(Icons.Outlined.Category, "Formas", st.tool == Tool.SHAPE) { st.selectTool(Tool.SHAPE) }
-            ToolButton(Icons.Outlined.Image, "Imagem", false) {
+            ToolButton(TextToolIcon, "Texto", st.tool == Tool.TEXT) { st.selectTool(Tool.TEXT) }
+            ToolButton(ShapesIcon, "Formas", st.tool == Tool.SHAPE) { st.selectTool(Tool.SHAPE) }
+            ToolButton(ImageToolIcon, "Imagem", false) {
                 imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }
-            ToolButton(Icons.Outlined.EmojiEmotions, "Stickers", false) { dialog = EditorDialog.Stickers }
-            ToolButton(Icons.Outlined.HighlightAlt, "Laço (selecionar)", st.tool == Tool.LASSO) { st.selectTool(Tool.LASSO) }
-            Spacer(Modifier.width(24.dp))
+            ToolButton(StickerIcon, "Stickers", false) { dialog = EditorDialog.Stickers }
+            ToolButton(LassoIcon, "Selecionar", st.tool == Tool.LASSO) { st.selectTool(Tool.LASSO) }
             val showPageNav = st.tool == Tool.NONE || (st.tool == Tool.LASSO && st.selection.isEmpty())
             if (showPageNav) {
-                IconButton(onClick = { st.goTo(st.pageIndex - 1) }, enabled = st.pageIndex > 0) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Página anterior")
-                }
+                Spacer(Modifier.weight(1f))
+                BarButton(Icons.AutoMirrored.Outlined.Undo, "Página anterior", enabled = st.pageIndex > 0) { st.goTo(st.pageIndex - 1) }
                 Text(
                     "${st.pageIndex + 1} / ${nb.pages.size}",
-                    Modifier.clip(MaterialTheme.shapes.small).clickable { dialog = EditorDialog.GoTo }.padding(horizontal = 8.dp, vertical = 6.dp),
+                    Modifier.clip(MaterialTheme.shapes.small).clickable { dialog = EditorDialog.GoTo }
+                        .padding(horizontal = 24.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                 )
-                IconButton(onClick = { st.goTo(st.pageIndex + 1) }, enabled = st.pageIndex < nb.pages.lastIndex) {
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Próxima página")
-                }
+                BarButton(Icons.AutoMirrored.Outlined.Redo, "Próxima página", enabled = st.pageIndex < nb.pages.lastIndex) { st.goTo(st.pageIndex + 1) }
+                Spacer(Modifier.weight(0.8f))
             } else {
+                Spacer(Modifier.weight(1f))
                 ToolbarOptions(st, cfg)
+                Spacer(Modifier.width(32.dp))
             }
-            Spacer(Modifier.width(24.dp))
             if (settings.zoomLockButton) {
-                IconButton(onClick = { st.zoomLocked = !st.zoomLocked }) {
-                    Icon(if (st.zoomLocked) Icons.Outlined.Lock else Icons.Outlined.LockOpen, "Travar zoom/rolagem")
-                }
+                BarButton(if (st.zoomLocked) Icons.Outlined.Lock else Icons.Outlined.LockOpen, "Travar zoom/rolagem") { st.zoomLocked = !st.zoomLocked }
             }
-            IconButton(onClick = { st.undo() }, enabled = st.canUndo) { Icon(Icons.AutoMirrored.Filled.Undo, "Desfazer") }
-            IconButton(onClick = { st.redo() }, enabled = st.canRedo) { Icon(Icons.AutoMirrored.Filled.Redo, "Refazer") }
-            VerticalDivider(Modifier.height(28.dp).padding(horizontal = 4.dp))
+            BarButton(Icons.Outlined.RotateLeft, "Desfazer", enabled = st.canUndo) { st.undo() }
+            BarButton(Icons.Outlined.RotateRight, "Refazer", enabled = st.canRedo) { st.redo() }
+            VerticalDivider(Modifier.height(30.dp).padding(horizontal = 6.dp))
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.Settings, "Mais opções") }
+                BarButton(Icons.Outlined.Settings, "Mais opções") { menu = true }
                 DropdownMenu(menu, { menu = false }) {
                     DropdownMenuItem(text = { Text("Modelo desta página") }, onClick = { menu = false; dialog = EditorDialog.Template })
                     DropdownMenuItem(text = { Text("Exportar PDF") }, onClick = {
@@ -242,12 +243,22 @@ fun EditorScreen(vm: AppViewModel, notebookId: String) {
             )
         }
 
-        PageCanvas(
-            st = st,
-            settings = settings,
-            onTextTap = { x, y, existing -> dialog = EditorDialog.Text(x, y, existing) },
-            modifier = Modifier.weight(1f),
-        )
+        Box(Modifier.weight(1f)) {
+            PageCanvas(
+                st = st,
+                settings = settings,
+                onTextTap = { x, y, existing -> dialog = EditorDialog.Text(x, y, existing) },
+            )
+            // Botão flutuante da caneta na borda direita (como no Penly): liga/desliga a caneta.
+            Box(
+                Modifier.align(Alignment.CenterEnd).offset(x = 22.dp).size(70.dp).clip(CircleShape)
+                    .background(Color(0xFF8E8E8E).copy(alpha = 0.85f))
+                    .clickable { st.selectTool(if (st.tool == Tool.NONE) Tool.PEN else st.tool) },
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Icon(Icons.Filled.Edit, "Caneta", tint = Color.White, modifier = Modifier.padding(start = 16.dp).size(28.dp))
+            }
+        }
     }
 
     when (val d = dialog) {
@@ -322,12 +333,24 @@ private fun placeImage(st: EditorState, file: String, w: Int, h: Int, size: Size
 }
 
 @Composable
+private fun BarButton(icon: ImageVector, label: String, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled) {
+        Icon(
+            icon, label,
+            modifier = Modifier.size(26.dp),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.8f else 0.3f),
+        )
+    }
+}
+
+/** Ferramenta: a escolhida fica azul (sem fundo), como no Penly. */
+@Composable
 private fun ToolButton(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.padding(horizontal = 2.dp).clip(CircleShape)
-            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent),
-    ) {
-        Icon(icon, label, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+    IconButton(onClick = onClick, modifier = Modifier.padding(horizontal = 2.dp)) {
+        Icon(
+            icon, label,
+            modifier = Modifier.size(28.dp),
+            tint = if (selected) Color(0xFF4A86E8) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+        )
     }
 }

@@ -14,6 +14,8 @@ enum class FingerMode(val label: String) {
     NEVER("Só a caneta desenha"),
 }
 enum class TextPlacement(val label: String) { LEFT("Esquerda"), MIDDLE("Meio") }
+enum class Quality3(val label: String) { LOW("Baixa"), MEDIUM("Média"), HIGH("Alta") }
+
 enum class ExportQuality(val label: String, val scale: Float) {
     LOW("Baixa", 1f), STANDARD("Padrão", 2f), HIGH("Alta", 3f)
 }
@@ -32,8 +34,21 @@ data class AppSettings(
     val showSystemBars: Boolean = true,
     val zoomLockButton: Boolean = true,
     val highlighterBelow: Boolean = true,
-    // Texto
+    val backgroundQuality: Quality3 = Quality3.HIGH,
+    val interactionWhileEditing: Boolean = true,
+    val multiSelectTaps: Boolean = false,
+    val snapRotation90: Boolean = true,
+    // Sincronização
+    val cloudService: String = "Desativado",
+    // Entrada de texto
+    val onScreenKeyboard: Boolean = false,
+    val appHandwriting: Boolean = true,
+    val systemHandwriting: Boolean = true,
+    val handwritingLanguage: String = "Português",
+    val handwritingAutoSpacing: Boolean = true,
     val textPlacement: TextPlacement = TextPlacement.MIDDLE,
+    /** 0 = usar o tamanho da barra de ferramentas */
+    val textBoxFontSize: Int = 0,
     // Exportação
     val exportQuality: ExportQuality = ExportQuality.STANDARD,
     // Backups automáticos
@@ -42,6 +57,7 @@ data class AppSettings(
     val actionsPerBackup: Int = 30,
     // Avançado
     val cacheSizeMb: Int = 256,
+    val memorySafeMode: Boolean = false,
     // Estado interno
     val starterCreated: Boolean = false,
 )
@@ -76,6 +92,18 @@ class SettingsStore(context: Context) {
             showSystemBars = prefs.getBoolean("showSystemBars", d.showSystemBars),
             zoomLockButton = prefs.getBoolean("zoomLockButton", d.zoomLockButton),
             highlighterBelow = prefs.getBoolean("highlighterBelow", d.highlighterBelow),
+            backgroundQuality = enumOf("backgroundQuality", d.backgroundQuality),
+            interactionWhileEditing = prefs.getBoolean("interactionWhileEditing", d.interactionWhileEditing),
+            multiSelectTaps = prefs.getBoolean("multiSelectTaps", d.multiSelectTaps),
+            snapRotation90 = prefs.getBoolean("snapRotation90", d.snapRotation90),
+            cloudService = prefs.getString("cloudService", d.cloudService) ?: d.cloudService,
+            onScreenKeyboard = prefs.getBoolean("onScreenKeyboard", d.onScreenKeyboard),
+            appHandwriting = prefs.getBoolean("appHandwriting", d.appHandwriting),
+            systemHandwriting = prefs.getBoolean("systemHandwriting", d.systemHandwriting),
+            handwritingLanguage = prefs.getString("handwritingLanguage", d.handwritingLanguage) ?: d.handwritingLanguage,
+            handwritingAutoSpacing = prefs.getBoolean("handwritingAutoSpacing", d.handwritingAutoSpacing),
+            textBoxFontSize = prefs.getInt("textBoxFontSize", d.textBoxFontSize),
+            memorySafeMode = prefs.getBoolean("memorySafeMode", d.memorySafeMode),
             textPlacement = enumOf("textPlacement", d.textPlacement),
             exportQuality = enumOf("exportQuality", d.exportQuality),
             autoBackups = prefs.getBoolean("autoBackups", d.autoBackups),
@@ -99,6 +127,18 @@ class SettingsStore(context: Context) {
             .putBoolean("showSystemBars", s.showSystemBars)
             .putBoolean("zoomLockButton", s.zoomLockButton)
             .putBoolean("highlighterBelow", s.highlighterBelow)
+            .putString("backgroundQuality", s.backgroundQuality.name)
+            .putBoolean("interactionWhileEditing", s.interactionWhileEditing)
+            .putBoolean("multiSelectTaps", s.multiSelectTaps)
+            .putBoolean("snapRotation90", s.snapRotation90)
+            .putString("cloudService", s.cloudService)
+            .putBoolean("onScreenKeyboard", s.onScreenKeyboard)
+            .putBoolean("appHandwriting", s.appHandwriting)
+            .putBoolean("systemHandwriting", s.systemHandwriting)
+            .putString("handwritingLanguage", s.handwritingLanguage)
+            .putBoolean("handwritingAutoSpacing", s.handwritingAutoSpacing)
+            .putInt("textBoxFontSize", s.textBoxFontSize)
+            .putBoolean("memorySafeMode", s.memorySafeMode)
             .putString("textPlacement", s.textPlacement.name)
             .putString("exportQuality", s.exportQuality.name)
             .putBoolean("autoBackups", s.autoBackups)
