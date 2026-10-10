@@ -1,0 +1,48 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk penly-app.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: penly-app-apk
+          path: penly-app.apk
+
+      # Publica o APK na página de Releases (dá para baixar direto no tablet, sem login).
+      - name: Publish "apk-latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag -y || true
+          gh release create apk-latest penly-app.apk \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Penly App — última versão" \
+            --notes "APK gerado automaticamente a partir do commit $GITHUB_SHA (branch ${GITHUB_REF_NAME}). Baixe o arquivo penly-app.apk abaixo e abra no tablet para instalar."
