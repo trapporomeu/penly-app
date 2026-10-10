@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -73,6 +74,8 @@ private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Sty
 private val eraserPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = 0xFF757575.toInt() }
 private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL; color = 0x22000000 }
 
+// `historical` (pontos intermediários da caneta) ainda é marcado como experimental.
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PageCanvas(
     st: EditorState,
